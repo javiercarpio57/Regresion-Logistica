@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, include=FALSE}
 library(dplyr)
 library(plyr)
+library(dummies)
 ```
 
 ```{r}
@@ -36,5 +37,15 @@ summary(g3$SalePrice)
 datos$grupo <- mapvalues(datos$grupo, c(1, 2, 3), c("Bajo","Intermedio","Caro"))
 ```
 
+
+```{r}
+porcentaje <- 0.7
+datos <- cbind(datos, dummy(datos$grupo, verbose = T))
+
+corte <- sample(nrow(datos), nrow(datos) * porcentaje)
+train <- datos[corte, ]
+test <- datos[-corte, ]
+
+```
 
 
