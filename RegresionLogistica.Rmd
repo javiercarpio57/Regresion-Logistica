@@ -2,7 +2,7 @@
 title: "Modelo de Regresión Logística"
 author: "Javier Carpio & Paul Belches"
 date: "13/04/2020"
-output: word_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -13,14 +13,40 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(plyr)
 library(dummies)
+library(corrplot)
 ```
 
+Para empezar con el análisis de los siguientes algoritmos: 
+
+    * Árboles de decisión
+    * Random Forest
+    * Naive Bayes
+    * Regresión Lineal
+    * Regresión Logística
+  
+Debemos cargar el dataset llamado "train.csv", y para este dataset se tomarán las siguientes variables:
+
+    * TotalBsmtSF
+    * X1stFlrSF
+    * GrLivArea
+    * GarageCars
+    * GarageArea
+    * SalePrice
+  
+Pues como se ve en el gráfico de correlación podemos ver que tienen alta correlación con el SalePrice, que es la variable respuesta para este análisis. 
 ```{r}
 houses <- read.csv("train.csv")
 
-datos <-select(houses, YearBuilt, YearRemodAdd,TotalBsmtSF,X1stFlrSF,GrLivArea,TotRmsAbvGrd,GarageCars,GarageArea,SalePrice)
+datos <-select(houses, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice)
 datos <- na.omit(datos)
 
+matriz_cor <- cor(datos)
+corrplot(matriz_cor)
+```
+
+Se procede con ejecutar el algoritmo de clústeres (3) para generar grupos de BARATO, INTERMEDIO y CARO
+
+```{r}
 cluster <- datos
 km <- kmeans(datos, 3)
 datos$grupo <- km$cluster
@@ -30,22 +56,44 @@ g1<- datos[datos$grupo==1,]
 g2<- datos[datos$grupo==2,]
 g3<- datos[datos$grupo==3,]
 
-summary(g1$SalePrice)
-summary(g2$SalePrice)
-summary(g3$SalePrice)
-
-datos$grupo <- mapvalues(datos$grupo, c(1, 2, 3), c("Bajo","Intermedio","Caro"))
 ```
 
+Y, se cambia el nombre del grupo de número a palabras, para una mejor comprensión y un mejor análisis posterior.
 
 ```{r}
+if ((min(g1$SalePrice) > min(g2$SalePrice)) && (min(g1$SalePrice) > min(g3$SalePrice))) {
+  if (min(g2$SalePrice) > min(g3$SalePrice)) {
+    a <- c("Caro", "Intermedio", "Bajo")
+  } else {
+    a <- c("Caro", "Bajo", "Intermedio")
+  }
+} else if ((min(g1$SalePrice) < min(g2$SalePrice)) && (min(g1$SalePrice) < min(g3$SalePrice))) {
+  if (min(g2$SalePrice) < min(g3$SalePrice)) {
+    a <- c("Bajo", "Intermedio", "Caro")
+  } else {
+    a <- c("Bajo", "Caro", "Intermedio")
+  }
+} else {
+  if (min(g2$SalePrice) < min(g3$SalePrice)) {
+    a <- c("Intermedio", "Intermedio", "Caro")
+  } else {
+    a <- c("Intermedio", "Caro", "Intermedio")
+  }
+}
+
+datos$grupo <- mapvalues(datos$grupo, c(1, 2, 3), a)
+head(datos)
+```
+
+Paraa el análisis y comparación de los algoritmos contra Regresión Logística, necesitamos que la variable respuesta (grupo) sea dicotómica, así que se procede a converter la variable categórica en dicotómica, y se parte el dataset en TRAIN y TEST para entrenamiento y cross validation.
+
+```{r, message=FALSE, warning=FALSE}
 porcentaje <- 0.7
 datos <- cbind(datos, dummy(datos$grupo, verbose = T))
 
 corte <- sample(nrow(datos), nrow(datos) * porcentaje)
 train <- datos[corte, ]
 test <- datos[-corte, ]
-
 ```
 
 
