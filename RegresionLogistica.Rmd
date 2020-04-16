@@ -19,6 +19,7 @@ library(ggplot2)
 library(e1071)
 library(rpart)
 library(rpart.plot)
+library(knitr)
 ```
 
 Para empezar con el análisis de los siguientes algoritmos: 
@@ -47,6 +48,59 @@ datos <-select(houses, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea
 datos <- na.omit(datos)
 matriz_cor <- cor(datos)
 corrplot(matriz_cor)
+```
+
+### TotalBsmtSF
+
+Los datos están ligeramente normalizados.
+```{r}
+hist(datos$TotalBsmtSF)
+qqnorm(datos$TotalBsmtSF)
+qqline(datos$TotalBsmtSF, col='red')
+
+plot(datos$TotalBsmtSF, datos$SalePrice)
+```
+
+### X1stFlrSF
+
+Los datos están ligeramente normalizados.
+```{r}
+hist(datos$X1stFlrSF)
+qqnorm(datos$X1stFlrSF)
+qqline(datos$X1stFlrSF, col='red')
+
+plot(datos$X1stFlrSF, datos$SalePrice)
+```
+
+### GrLivArea
+
+Los datos están ligeramente normalizados.
+```{r}
+hist(datos$GrLivArea)
+qqnorm(datos$GrLivArea)
+qqline(datos$GrLivArea, col='red')
+
+plot(datos$GrLivArea, datos$SalePrice)
+```
+
+### GarageArea
+
+Los datos están ligeramente normalizados.
+```{r}
+hist(datos$GarageArea)
+qqnorm(datos$GarageArea)
+qqline(datos$GarageArea, col='red')
+
+plot(datos$GarageArea, datos$SalePrice)
+```
+
+### SalePrice
+
+Los datos están ligeramente normalizados.
+```{r}
+hist(datos$SalePrice)
+qqnorm(datos$SalePrice)
+qqline(datos$SalePrice, col='red')
 ```
 
 Se procede con ejecutar el algoritmo de clústeres (3) para generar grupos de BARATO, INTERMEDIO y CARO
@@ -112,11 +166,16 @@ modelo
 summary(modelo)
 ```
 
+Vemos que todas las variables poseen un nivel de significancia alto, a excepción de X1stFlrSF, pero se dejará en el modelo pues tiene buena correlación con SalePrice.
+
+### Testing
 ```{r}
 pred <- predict(modelo, newdata = test[, 1:5], type = "response")
 prediccion <- ifelse(pred >= 0.5, 1, 0)
 confusionMatrix(as.factor(test$Bajo), as.factor(prediccion))
 ```
+
+Como vemos el resultado anterior, vemor que el modelo generado es muy bastante bueno. Predice correctamente 22 de 37, y 393 de 9. Posee un accuracy del 94.53%, con una sensitividad del 96.32% y especificidad del 70.97%, así que se concluye que el modelo de regresión logística para predecir si una cada es barata o no, es bueno, pues acierta casi en la totalidad, sin poseer overfitting.
 
 
 ## Naive Bayes
@@ -130,6 +189,7 @@ predBayes <- predict(modelo, newdata = test[, 1:5])
 confusionMatrix(as.factor(predBayes), as.factor(nbTest$Bajo))
 ```
 
+Vemos que el modelo de Naive Bayes obtiene un accuracy del 83.6%. También, la sensitividad y la especificidad son relativamente altas: 0.8086 y 0.8609 respectivamente. Están bien, pero hay mejores modelos.
     
 ## Regresión Lineal
 
@@ -144,29 +204,26 @@ prediccion <- ifelse(predMLM >= 0.5, 1, 0)
 confusionMatrix(as.factor(prediccion), as.factor(lTest$Bajo))
 ```
 
+El resultado de la regresión lineal multiple es muy similar al de Naive Bayes, teniendo un accuracy del 0.8405. Con sensitividad y especificidad del 0.8230 y 0.8565. Como se mencionó anteriormente, es buen resultado, pero hay mejores.
 
 
 ## Árbol de clasificación 
 
-```{r, message=FALSE, warning=FALSE}
-train
-```
 ```{r}
-ctTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, datosBajo)
-ctTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, datosBajo)
+ctTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, Bajo)
+ctTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, Bajo)
 ```
 
 ```{r}
-#Clasiffication Tree
-dt_model<-rpart(ctTrain$datosBajo~.,ctTrain,method = "class")
+dt_model<-rpart(ctTrain$Bajo~.,ctTrain,method = "class")
 rpart.plot(dt_model)
-#
+
 prediccion <- predict(dt_model, newdata = ctTest[1:5])
 columnaMasAlta<-apply(prediccion, 1, function(x) colnames(prediccion)[which.max(x)])
 ctTest$prediccion<-columnaMasAlta #Se le añade al grupo de prueba el valor de la predicción
-ctTest
-cfm<-table(ctTest$datosBajo,ctTest$prediccion)
-confusionMatrix(table(ctTest$prediccion, ctTest$datosBajo))
+
+cfm<-table(ctTest$Bajo,ctTest$prediccion)
+confusionMatrix(table(ctTest$prediccion, ctTest$Bajo))
 cfm
 ```
 
@@ -174,8 +231,8 @@ cfm
 ## Árbol de regresión 
 
 ```{r}
-rtTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, datosBajo)
-rtTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, datosBajo)
+rtTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, Bajo)
+rtTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, Bajo)
 ```
 
 ```{r}
@@ -187,19 +244,13 @@ prediccion <- predict(dt_model, newdata = rtTest[1:5])
 rtTest$prediccion <- prediccion 
 plot(rtTest$SalePrice, col='blue')
 points(prediccion, col='green')
-rtTest
 ```
 
 Gracias a que el árbol de regresión predice únicamente el precio de venta, y no la clase a la que pertenece se utilizaran los limites de precio la clase barata para determinar si la predicción de clase fue adecuada. 
 
 ```{r}
-g<-datos[datos$datosBajo==1,]
-summary(g$SalePrice)
-
+g<-datos[datos$Bajo==1,]
 g<-datos[datos$datosIntermedio==1,]
-summary(g$SalePrice)
-#g1<- datos[datos$grupo==1,]
-
 ```
 
 Al observar el precio de venta máximo en la clase baja, se puede observar que es menor al mínimo precio de venta de la clase Intermedia. POr lo que las casas con un precio de venta mayor a 172000 son consideradas como clasificadas fuera de clase. +
@@ -210,8 +261,14 @@ g1$prediccionClase <- 1
 g2<-rtTest[rtTest$prediccion >= 172000,]
 g2$prediccionClase <- 0
 rtTest <- bind_rows(g1,g2)
-cfm<-table(rtTest$datosBajo,rtTest$prediccionClase)
-confusionMatrix(table(rtTest$prediccionClase, rtTest$datosBajo))
-cfm
+cfm<-table(rtTest$Bajo,rtTest$prediccionClase)
+confusionMatrix(table(rtTest$prediccionClase, rtTest$Bajo))
 ```
 
+
+En resumen, se realizó una tabla que muestra los accuracy de cada modelo. Y podemos ver que para este análisis, la regresión logística de desempeñó de mejor manera que los demás modelos.
+
+```{r}
+resultado <- data.frame("Regresion_Logistica" = 0.9453, "Naive_Bayes" = 0.9157, "Regresion_lineal" = 0.9248, "Arbol_de_clasificacion" = 0.9294, "Arbol_de_regresion" = 0.3599)
+kable(resultado, caption = "Accuracy por modelo")
+```
