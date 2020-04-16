@@ -17,6 +17,8 @@ library(dummies)
 library(corrplot)
 library(ggplot2)
 library(e1071)
+library(rpart)
+library(rpart.plot)
 ```
 
 Para empezar con el análisis de los siguientes algoritmos: 
@@ -43,7 +45,6 @@ set.seed(123)
 
 datos <-select(houses, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice)
 datos <- na.omit(datos)
-
 matriz_cor <- cor(datos)
 corrplot(matriz_cor)
 ```
@@ -88,8 +89,8 @@ datos$grupo <- mapvalues(datos$grupo, c(1, 2, 3), a)
 ```
 
 Para el análisis y comparación de los algoritmos contra Regresión Logística, necesitamos que la variable respuesta (grupo) sea dicotómica, así que se procede a converter la variable categórica en dicotómica, y se parte el dataset en TRAIN y TEST para entrenamiento y cross validation.
-  
-```{r, warning=FALSE}
+
+```{r, message=FALSE, warning=FALSE}
 porcentaje <- 0.7
 datos <- cbind(datos, dummy(datos$grupo, verbose = T))
 colnames(datos)[8:10] <- a
@@ -144,4 +145,73 @@ confusionMatrix(as.factor(prediccion), as.factor(lTest$Bajo))
 ```
 
 
+
+## Árbol de clasificación 
+
+```{r, message=FALSE, warning=FALSE}
+train
+```
+```{r}
+ctTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, datosBajo)
+ctTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, datosBajo)
+```
+
+```{r}
+#Clasiffication Tree
+dt_model<-rpart(ctTrain$datosBajo~.,ctTrain,method = "class")
+rpart.plot(dt_model)
+#
+prediccion <- predict(dt_model, newdata = ctTest[1:5])
+columnaMasAlta<-apply(prediccion, 1, function(x) colnames(prediccion)[which.max(x)])
+ctTest$prediccion<-columnaMasAlta #Se le añade al grupo de prueba el valor de la predicción
+ctTest
+cfm<-table(ctTest$datosBajo,ctTest$prediccion)
+confusionMatrix(table(ctTest$prediccion, ctTest$datosBajo))
+cfm
+```
+
+
+## Árbol de regresión 
+
+```{r}
+rtTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, datosBajo)
+rtTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, datosBajo)
+```
+
+```{r}
+dt_model<-rpart(rtTrain$SalePrice~.,rtTrain[1:6],method = "anova")
+rpart.plot(dt_model)
+
+prediccion <- predict(dt_model, newdata = rtTest[1:5])
+#View(prediccion)
+rtTest$prediccion <- prediccion 
+plot(rtTest$SalePrice, col='blue')
+points(prediccion, col='green')
+rtTest
+```
+
+Gracias a que el árbol de regresión predice únicamente el precio de venta, y no la clase a la que pertenece se utilizaran los limites de precio la clase barata para determinar si la predicción de clase fue adecuada. 
+
+```{r}
+g<-datos[datos$datosBajo==1,]
+summary(g$SalePrice)
+
+g<-datos[datos$datosIntermedio==1,]
+summary(g$SalePrice)
+#g1<- datos[datos$grupo==1,]
+
+```
+
+Al observar el precio de venta máximo en la clase baja, se puede observar que es menor al mínimo precio de venta de la clase Intermedia. POr lo que las casas con un precio de venta mayor a 172000 son consideradas como clasificadas fuera de clase. +
+
+```{r}
+g1<-rtTest[rtTest$prediccion < 172000,]
+g1$prediccionClase <- 1
+g2<-rtTest[rtTest$prediccion >= 172000,]
+g2$prediccionClase <- 0
+rtTest <- bind_rows(g1,g2)
+cfm<-table(rtTest$datosBajo,rtTest$prediccionClase)
+confusionMatrix(table(rtTest$prediccionClase, rtTest$datosBajo))
+cfm
+```
 
