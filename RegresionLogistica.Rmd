@@ -12,8 +12,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, include=FALSE}
 library(dplyr)
 library(plyr)
+library(caret)
 library(dummies)
 library(corrplot)
+library(ggplot2)
+library(e1071)
 ```
 
 Para empezar con el análisis de los siguientes algoritmos: 
@@ -36,6 +39,7 @@ Debemos cargar el dataset llamado "train.csv", y para este dataset se tomarán l
 Pues como se ve en el gráfico de correlación podemos ver que tienen alta correlación con el SalePrice, que es la variable respuesta para este análisis. 
 ```{r}
 houses <- read.csv("train.csv")
+set.seed(123)
 
 datos <-select(houses, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice)
 datos <- na.omit(datos)
@@ -55,7 +59,6 @@ datos$grupo <- km$cluster
 g1<- datos[datos$grupo==1,]
 g2<- datos[datos$grupo==2,]
 g3<- datos[datos$grupo==3,]
-
 ```
 
 Y, se cambia el nombre del grupo de número a palabras, para una mejor comprensión y un mejor análisis posterior.
@@ -75,25 +78,70 @@ if ((min(g1$SalePrice) > min(g2$SalePrice)) && (min(g1$SalePrice) > min(g3$SaleP
   }
 } else {
   if (min(g2$SalePrice) < min(g3$SalePrice)) {
-    a <- c("Intermedio", "Intermedio", "Caro")
+    a <- c("Intermedio", "Bajo", "Caro")
   } else {
-    a <- c("Intermedio", "Caro", "Intermedio")
+    a <- c("Intermedio", "Caro", "Bajo")
   }
 }
 
 datos$grupo <- mapvalues(datos$grupo, c(1, 2, 3), a)
-head(datos)
 ```
 
-Paraa el análisis y comparación de los algoritmos contra Regresión Logística, necesitamos que la variable respuesta (grupo) sea dicotómica, así que se procede a converter la variable categórica en dicotómica, y se parte el dataset en TRAIN y TEST para entrenamiento y cross validation.
-
-```{r, message=FALSE, warning=FALSE}
+Para el análisis y comparación de los algoritmos contra Regresión Logística, necesitamos que la variable respuesta (grupo) sea dicotómica, así que se procede a converter la variable categórica en dicotómica, y se parte el dataset en TRAIN y TEST para entrenamiento y cross validation.
+  
+```{r, warning=FALSE}
 porcentaje <- 0.7
 datos <- cbind(datos, dummy(datos$grupo, verbose = T))
+colnames(datos)[8:10] <- a
 
 corte <- sample(nrow(datos), nrow(datos) * porcentaje)
 train <- datos[corte, ]
 test <- datos[-corte, ]
 ```
+
+## Regresión Logística
+    
+### Training
+```{r}
+num <- which(colnames(train) == "Bajo")
+modelo <- glm(Bajo~., data = train[, c(1:5, num)], family = binomial(), maxit = 100)
+
+modelo
+
+summary(modelo)
+```
+
+```{r}
+pred <- predict(modelo, newdata = test[, 1:5], type = "response")
+prediccion <- ifelse(pred >= 0.5, 1, 0)
+confusionMatrix(as.factor(test$Bajo), as.factor(prediccion))
+```
+
+
+## Naive Bayes
+
+```{r}
+nbTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, Bajo)
+nbTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, Bajo)
+
+modelo <- naiveBayes(as.factor(nbTrain$Bajo)~., data=nbTrain)
+predBayes <- predict(modelo, newdata = test[, 1:5])
+confusionMatrix(as.factor(predBayes), as.factor(nbTest$Bajo))
+```
+
+    
+## Regresión Lineal
+
+```{r}
+lTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, Bajo)
+lTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, Bajo)
+
+modelo <-lm (Bajo~., data = lTrain)
+
+predMLM <-predict(modelo, newdata = lTest[1:5])
+prediccion <- ifelse(predMLM >= 0.5, 1, 0)
+confusionMatrix(as.factor(prediccion), as.factor(lTest$Bajo))
+```
+
 
 
