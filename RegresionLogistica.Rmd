@@ -177,6 +177,17 @@ confusionMatrix(as.factor(test$Bajo), as.factor(prediccion))
 
 Como vemos el resultado anterior, vemor que el modelo generado es muy bastante bueno. Predice correctamente 22 de 37, y 393 de 9. Posee un accuracy del 94.53%, con una sensitividad del 96.32% y especificidad del 70.97%, así que se concluye que el modelo de regresión logística para predecir si una cada es barata o no, es bueno, pues acierta casi en la totalidad, sin poseer overfitting.
 
+Ahora, vemos un gráfica (de dos dimensiones) de la regresión logística.
+```{r}
+ggplot(data = test, aes(x = TotalBsmtSF, y = Bajo)) +
+  geom_point(aes(color = as.factor(Bajo)), shape = 1) + 
+  geom_smooth(method = "glm",
+              method.args = list(family = "binomial"),
+              color = "gray20",
+              se = FALSE) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
 
 ## Naive Bayes
 
