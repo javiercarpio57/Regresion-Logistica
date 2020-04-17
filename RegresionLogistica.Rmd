@@ -227,12 +227,14 @@ confusionMatrix(table(ctTest$prediccion, ctTest$Bajo))
 cfm
 ```
 
+El resultado del árbol de categorización es un accuracy del 0.9294. Con sensitividad y especificidad del 0.8669 y 0.7526. Como se mencionó anteriormente, es buen resultado, pero hay mejores.
 
 ## Árbol de regresión 
 
 ```{r}
 rtTrain = select(train, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, Bajo)
 rtTest = select(test, TotalBsmtSF, X1stFlrSF, GrLivArea, GarageCars, GarageArea, SalePrice, Bajo)
+rtTrain
 ```
 
 ```{r}
@@ -264,9 +266,11 @@ rtTest <- bind_rows(g1,g2)
 cfm<-table(rtTest$Bajo,rtTest$prediccionClase)
 confusionMatrix(table(rtTest$prediccionClase, rtTest$Bajo))
 ```
+El resultado del árbol de regresión es bastante deficiente. Se optuvo un rendimiento del 36%. Tomando en cuenta que este algoritmo no esta diseñado para la predicción de clases, se entiende la razón del mismo. 
 
+#Resultado
 
-En resumen, se realizó una tabla que muestra los accuracy de cada modelo. Y podemos ver que para este análisis, la regresión logística de desempeñó de mejor manera que los demás modelos.
+En resumen, se realizó una tabla que muestra los accuracy de cada modelo. Y podemos ver que para este análisis, la regresión logística de desempeñó de mejor manera que los demás modelos, con un 94% de presición. Esto 
 
 ```{r}
 resultado <- data.frame("Regresion_Logistica" = 0.9453, "Naive_Bayes" = 0.9157, "Regresion_lineal" = 0.9248, "Arbol_de_clasificacion" = 0.9294, "Arbol_de_regresion" = 0.3599)
